@@ -13,6 +13,24 @@ from simdist import simdist
 def standardize(X):
     return (X - X.mean())/(X.std())
 
+def baseline_permuted(E, n=10, **kwargs):
+    # FIXME: copied from dummy, check with original author
+    labels = np.random.randint(0, n, len(E.columns))
+    modules = convert_labels2modules(labels, E.columns)
+    return modules
+
+def baseline_sticky(E, n=10, **kwargs):
+    # FIXME: copied from dummy, check with original author
+    labels = np.random.randint(0, n, len(E.columns))
+    modules = convert_labels2modules(labels, E.columns)
+    return modules
+
+def baseline_scalefree(E, n=10, **kwargs):
+    # FIXME: copied from dummy, check with original author
+    labels = np.random.randint(0, n, len(E.columns))
+    modules = convert_labels2modules(labels, E.columns)
+    return modules
+
 def dummy(E, n=10, **kwargs):
     labels = np.random.randint(0, n, len(E.columns))
     modules = convert_labels2modules(labels, E.columns)
