@@ -183,6 +183,7 @@ def modevalworker(setting, scores):
 
             settingscores_goldstandard["settingid"] = setting["settingid"]
 
+            settingscores_goldstandard["baseline_name"] = dataset["baselinename"]
             settingscores_goldstandard["knownmodules_name"] = knownmodules_name
             settingscores_goldstandard["regnet_name"] = regnet_name
             settingscores_goldstandard["goldstandard"] = regnet_name + "#" + knownmodules_name
@@ -281,6 +282,7 @@ def modeval_coverage_worker(setting, scores, verbose=False):
     #for baseline_name, baseline in baselines.items():
     #    settingscores["aucodds_" + baseline_name] = settingscores["aucodds"]/baseline["aucodds"].mean()
 
+    settingscores["baseline_name"] = dataset["baselinename"]
     settingscores["settingid"] = setting["settingid"]
     settingscores["goldstandard"] = "regcircuit"
     settingscores["runningtime"] = runinfo["runningtime"]
