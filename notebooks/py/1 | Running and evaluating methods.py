@@ -46,6 +46,13 @@ import os
 conf_folder = "conf/"
 
 # %% [markdown] tags=[]
+# # Settings
+
+# %%
+N_JOBS = 1
+# N_JOBS = mp.cpu_count()-1
+
+# %% [markdown] tags=[]
 # # Running a method on different parameter settings and datasets
 
 # %% [markdown]
@@ -55,10 +62,10 @@ conf_folder = "conf/"
 # The following code will explore the parameters of a module detection method on every dataset using a grid-search approach.
 
 # %% [markdown]
-# If you want to run your own method, you should wrap it into a python function and add its parameters to `paramexplo_blueprints.py`. We will show the whole workflow here for a "dummy"  (but fast) clustering method, which will simply group genes randomly.
+# If you want to run your own method, you should wrap it into a python function and add its parameters to `conf/paramexplo_blueprints.py`. We will show the whole workflow here for a "dummy"  (but fast) clustering method, which will simply group genes randomly.
 
 # %% [markdown]
-# Every module detection method is wrapped in a python function (see lib/moduledetection.py)
+# Every module detection method is wrapped in a python function (see `scripts/moduledetection.py`)
 #
 # Because module detection methods usually take a while to run, we generate the files necessary to run a method on the several parameter settings and datasets here. These can then be easily called from the commandline, for example on a computer cluster or locally using GNU `parallel`.
 #
@@ -87,9 +94,9 @@ method_name = "dummy" # use the dummy method to check if everything works correc
 # method_name = "meanshift"
 
 # %% [markdown]
-# To add your own method, create a function with "your_method_name" in the "lib/clustering.py" file (or any other file as long as it's imported in `scripts/moduledetection.py`.
+# To add your own method, create a function with "your_method_name" in the `lib/clustering.py` file (or any other file as long as it's imported in `scripts/moduledetection.py`.
 # This function should accept an `E` object (which is a dataframe with genes in columns) and any additional parameters
-# Then add reasonable parameter setting of your method to conf/paramexplo_blueprints.py . 
+# Then add reasonable parameter setting of your method to `conf/paramexplo_blueprints.py`.
 
 # %% [markdown]
 # method_name = "your_method_name"
@@ -190,8 +197,7 @@ from modulescomparison import ModevalKnownmodules, ModevalCoverage
 # create pool of processors
 if "pool" in locals().keys():
     pool.close()
-pool = mp.Pool(mp.cpu_count()-1)
-# pool = mp.Pool(1)
+pool = mp.Pool(N_JOBS)
 
 # %%
 settings_filtered = [setting for setting in settings if not setting["dataset_name"].startswith("human")] # only evaluate non-human datasets
@@ -211,10 +217,10 @@ modeval.scores
 # ## Using the coverage of regulators
 
 # %%
-# built a pool of processors
+# create pool of processors
 if "pool" in locals().keys():
     pool.close()
-pool = mp.Pool(mp.cpu_count()-1)
+pool = mp.Pool(N_JOBS)
 
 # %%
 settings_filtered = [setting for setting in settings if setting["dataset_name"].startswith("human")] # only evaluate human datasets
@@ -325,7 +331,7 @@ for methodname in methodnames:
 finalscores = pd.concat(finalscores, ignore_index=True)
 
 # %% [markdown]
-# The final scores contains all the comparisons we made, together with a final score int he score column:
+# The final scores contains all the comparisons we made, together with a final score in the score column:
 
 # %%
 finalscores
