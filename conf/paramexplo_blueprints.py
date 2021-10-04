@@ -110,6 +110,17 @@ blueprints = {
     },
     "type":"moduledetection"
 },
+"agglom_pearson_abs": {
+    "staticparams":{
+        "method":"agglom_pearson_abs",
+        "simdist_function":"pearson_correlation_absolute"
+    },
+    "dynparams": {
+        "linkage":["complete", "average"],
+        "k":np.arange(25, 300.01, 25)
+    },
+    "type":"moduledetection"
+},
 "hybrid": {
     "staticparams":{
         "method":"hybrid"
@@ -497,6 +508,7 @@ methodparamsoi = {
     "spectral_knn":["k", "knn"],
     "wgcna":["power", "mergeCutHeight", "minModuleSize", "deepSplit", "detectCutHeight", "TOMDenom"],
     "agglom":["k", "linkage", "simdist_function"],
+    "agglom_pearson_abs":["k", "linkage", "simdist_function"],
     "hybrid":["k"],
     "divisive":["k"],
     "sota":["alpha"],
@@ -554,6 +566,7 @@ methodparams_modulenumber = {
     "spectral_knn":["k"],
     "wgcna":["mergeCutHeight"],
     "agglom":["k"],
+    "agglom_pearson_abs":["k"],
     "hybrid":["k"],
     "divisive":["k"],
     "sota":["alpha"],
