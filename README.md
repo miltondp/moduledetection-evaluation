@@ -43,10 +43,10 @@ export METHOD=agglom_pearson_abs
 
 # generate the jobs
 cd notebooks/
-papermill --log-output ${METHOD}-generate_jobs.ipynb ${METHOD}-generate_jobs.ipynb
+papermill --log-output generate_jobs.ipynb ${METHOD}-generate_jobs.ipynb -p method_name ${METHOD}
 
 # from the previous run you will see a message indicating which command you have to run next
 # for example:
 cd ..
-parallel -j 3 -a tmp/paramexplo/{METHOD}.txt
+parallel -j 3 -a tmp/paramexplo/${METHOD}.txt
 ```
