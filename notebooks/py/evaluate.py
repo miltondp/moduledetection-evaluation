@@ -49,7 +49,7 @@ conf_folder = "conf/"
 # # Settings
 
 # %% tags=["parameters"]
-n_jobs = int((mp.cpu_count()/2) - 1)
+n_jobs = int(mp.cpu_count() - 1)
 method_name = None
 
 # %%
