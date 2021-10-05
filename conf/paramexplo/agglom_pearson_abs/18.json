@@ -1,0 +1,1 @@
+{"params": {"method": "agglom_pearson_abs", "simdist_function": "pearson_correlation_absolute", "k": 250.0, "linkage": "complete"}, "location": "conf/paramexplo/agglom_pearson_abs/18.json", "seed": 0}
