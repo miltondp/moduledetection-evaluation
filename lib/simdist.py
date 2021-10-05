@@ -70,8 +70,8 @@ def simdist(E, simdist_function, similarity=True, **kwargs):
     choices = {
         "pearson_correlation":[True, lambda E: np.corrcoef(E.T)],
         "pearson_correlation_absolute":[True, lambda E: np.abs(np.corrcoef(E.T))],
-        "clustermatch": [True, lambda E: clustermatch(E)],
-        "clustermatch_linear": [True, lambda E: clustermatch(E, internal_n_clusters=list(range(2, 2 + 1)))],
+        "clustermatch": [True, lambda E: clustermatch(E.T)],
+        "clustermatch_linear": [True, lambda E: clustermatch(E.T, internal_n_clusters=list(range(2, 2 + 1)))],
     }
 
     measure_similarity, func = choices[simdist_function]
