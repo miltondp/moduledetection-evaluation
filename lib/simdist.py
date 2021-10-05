@@ -1,16 +1,17 @@
+import sys
+from pathlib import Path
+from datetime import datetime
+import hashlib
+
 import numpy as np
 import pandas as pd
 
-import sklearn.metrics
-import scipy.spatial
+from clustermatch.corr import clustermatch
 
-from itertools import combinations
 
-from datetime import datetime
+DATA_HASH_DIR = Path(__file__).parent / "data_hash"
+DATA_HASH_FILENAME_TEMPLATE = "{hash}.pkl"
 
-import sys
-
-import os
 
 def standardize(X):
     return (X - X.mean())/(X.std())
@@ -44,16 +45,42 @@ def cal_triangular(E, func):
         sys.stdout.write("\n")
     return correlations
 
+
+def get_func_output(E, func):
+    """
+    TODO
+    """
+    DATA_HASH_DIR.mkdir(exist_ok=True)
+
+    data_hash = hashlib.sha256(pd.util.hash_pandas_object(E, index=True).to_numpy()).hexdigest()
+    filepath = DATA_HASH_DIR / DATA_HASH_FILENAME_TEMPLATE.format(hash=hash)
+
+    if filepath.exists():
+        return pd.read_pickle(filepath)
+
+    # compute the similarity matrix
+    simdist_matrix = func(E)
+    simdist_matrix.to_pickle(filepath)
+
+    return simdist_matrix
+
+
+
 def simdist(E, simdist_function, similarity=True, **kwargs):
     choices = {
         "pearson_correlation":[True, lambda E: np.corrcoef(E.T)],
-        "pearson_correlation_absolute":[True, lambda E: np.abs(np.corrcoef(E.T))]
+        "pearson_correlation_absolute":[True, lambda E: np.abs(np.corrcoef(E.T))],
+        "clustermatch": [True, lambda E: clustermatch(E)],
+        "clustermatch_linear": [True, lambda E: clustermatch(E, internal_n_clusters=list(range(2, 2 + 1)))],
     }
 
     measure_similarity, func = choices[simdist_function]
 
-    simdist_matrix = func(E)
-    simdist_matrix = pd.DataFrame(simdist_matrix, columns=E.columns, index=E.columns)
+    if simdist_function in ("clustermatch", "clustermatch_linear"):
+        simdist_matrix = get_func_output(E, func)
+    else:
+        simdist_matrix = func(E)
+        simdist_matrix = pd.DataFrame(simdist_matrix, columns=E.columns, index=E.columns)
 
     if (measure_similarity and similarity) or (not measure_similarity and not similarity):
         ""

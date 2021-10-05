@@ -121,6 +121,28 @@ blueprints = {
     },
     "type":"moduledetection"
 },
+"agglom_clustermatch": {
+    "staticparams":{
+        "method":"agglom_clustermatch",
+        "simdist_function":"clustermatch"
+    },
+    "dynparams": {
+        "linkage":["complete", "average"],
+        "k":np.arange(25, 300.01, 25)
+    },
+    "type":"moduledetection"
+},
+"agglom_clustermatch_linear": {
+    "staticparams":{
+        "method":"agglom_clustermatch_linear",
+        "simdist_function":"clustermatch_linear"
+    },
+    "dynparams": {
+        "linkage":["complete", "average"],
+        "k":np.arange(25, 300.01, 25)
+    },
+    "type":"moduledetection"
+},
 "hybrid": {
     "staticparams":{
         "method":"hybrid"
@@ -509,6 +531,8 @@ methodparamsoi = {
     "wgcna":["power", "mergeCutHeight", "minModuleSize", "deepSplit", "detectCutHeight", "TOMDenom"],
     "agglom":["k", "linkage", "simdist_function"],
     "agglom_pearson_abs":["k", "linkage", "simdist_function"],
+    "agglom_clustermatch":["k", "linkage", "simdist_function"],
+    "agglom_clustermatch_linear":["k", "linkage", "simdist_function"],
     "hybrid":["k"],
     "divisive":["k"],
     "sota":["alpha"],
@@ -567,6 +591,8 @@ methodparams_modulenumber = {
     "wgcna":["mergeCutHeight"],
     "agglom":["k"],
     "agglom_pearson_abs":["k"],
+    "agglom_clustermatch":["k"],
+    "agglom_clustermatch_linear":["k"],
     "hybrid":["k"],
     "divisive":["k"],
     "sota":["alpha"],

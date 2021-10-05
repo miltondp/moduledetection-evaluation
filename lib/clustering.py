@@ -32,6 +32,20 @@ def agglom_pearson_abs(E, k=100, linkage="complete", simdist_function="pearson_c
     modules = convert_labels2modules(agglom.labels_, E.columns)
     return modules
 
+def agglom_clustermatch(E, k=100, linkage="complete", simdist_function="clustermatch", **kwargs):
+    distances = simdist(E, simdist_function, similarity = False)
+    agglom = sklearn.cluster.AgglomerativeClustering(n_clusters=int(k), affinity = "precomputed", linkage = linkage)
+    agglom.fit(distances)
+    modules = convert_labels2modules(agglom.labels_, E.columns)
+    return modules
+
+def agglom_clustermatch_linear(E, k=100, linkage="complete", simdist_function="clustermatch_linear", **kwargs):
+    distances = simdist(E, simdist_function, similarity = False)
+    agglom = sklearn.cluster.AgglomerativeClustering(n_clusters=int(k), affinity = "precomputed", linkage = linkage)
+    agglom.fit(distances)
+    modules = convert_labels2modules(agglom.labels_, E.columns)
+    return modules
+
 def ica_zscore(E, k=200, stdcutoff=1e-3, seed=None, **kwargs):
     source = _ica_fastica(E, k, seed)
     modules = _ica_zscore(E, source, stdcutoff)
