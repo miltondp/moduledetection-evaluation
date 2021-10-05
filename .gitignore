@@ -3,7 +3,6 @@
 *.c
 *.cpython*
 *.ipynb_checkpoints/
-tmp/
 .Rhistory
 results/
 results2/
