@@ -159,24 +159,24 @@ settings_dataset = pd.DataFrame([dict(settingid=setting["settingid"], **json.loa
 settings_method = pd.DataFrame([dict(settingid=setting["settingid"], **json.load(open("../" + setting["method_location"]))["params"]) for setting in settings])
 
 # %%
-commands = ""
-for i, setting in enumerate(settings):
-    #commands += "python scripts/moduledetection.py {method_location} {dataset_location} {output_folder} 0 test\n".format(**setting)
-    commands += "python3 scripts/" + methodblueprint["type"] + ".py {method_location} {dataset_location} {output_folder}\n".format(**setting)
+# commands = ""
+# for i, setting in enumerate(settings):
+#     #commands += "python scripts/moduledetection.py {method_location} {dataset_location} {output_folder} 0 test\n".format(**setting)
+#     commands += "python3 scripts/" + methodblueprint["type"] + ".py {method_location} {dataset_location} {output_folder}\n".format(**setting)
 
-commands_location = "tmp/{settings_name}.txt".format(**locals())
-os.makedirs("../" + os.path.dirname(commands_location), exist_ok=True)
-with open("../" + commands_location, "w") as outfile:
-    outfile.write(commands)
-commands_location = "tmp/{settings_name}.txt".format(**locals())
-os.makedirs(os.path.dirname("../tmp/" + commands_location), exist_ok=True)
-with open("../tmp/" + commands_location, "w") as outfile:
-    outfile.write(commands)
+# commands_location = "tmp/{settings_name}.txt".format(**locals())
+# os.makedirs("../" + os.path.dirname(commands_location), exist_ok=True)
+# with open("../" + commands_location, "w") as outfile:
+#     outfile.write(commands)
+# commands_location = "tmp/{settings_name}.txt".format(**locals())
+# os.makedirs(os.path.dirname("../tmp/" + commands_location), exist_ok=True)
+# with open("../tmp/" + commands_location, "w") as outfile:
+#     outfile.write(commands)
     
-#script_location = generate_batchcode(commands_location, settings_name, len(settings), {"memory":"10G", "numcores":1}, "biclust_comp2")
+# #script_location = generate_batchcode(commands_location, settings_name, len(settings), {"memory":"10G", "numcores":1}, "biclust_comp2")
 
-# this command can be used on most linux computers to run the different parameter settings in parallel
-print("parallel -j 4 -a " + commands_location)
+# # this command can be used on most linux computers to run the different parameter settings in parallel
+# print("parallel -j 4 -a " + commands_location)
 
 # %% [markdown]
 # # Evaluating the method
