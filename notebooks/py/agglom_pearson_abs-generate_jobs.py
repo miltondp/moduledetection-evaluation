@@ -19,7 +19,7 @@
 # %% scrolled=true
 import sys
 import os
-sys.path.insert(0,os.path.abspath("../lib/"))
+# sys.path.insert(0,os.path.abspath("../lib/"))
 
 import json
 
@@ -176,6 +176,6 @@ with open("../tmp/" + commands_location, "w") as outfile:
 #script_location = generate_batchcode(commands_location, settings_name, len(settings), {"memory":"10G", "numcores":1}, "biclust_comp2")
 
 # this command can be used on most linux computers to run the different parameter settings in parallel
-print("parallel -j 4 -a " + commands_location)
+print("Run the following command:\nparallel -j 4 -a " + commands_location)
 
 # %%
