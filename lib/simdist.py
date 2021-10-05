@@ -53,7 +53,7 @@ def get_func_output(E, func):
     DATA_HASH_DIR.mkdir(exist_ok=True)
 
     data_hash = hashlib.sha256(pd.util.hash_pandas_object(E, index=True).to_numpy()).hexdigest()
-    filepath = DATA_HASH_DIR / DATA_HASH_FILENAME_TEMPLATE.format(hash=hash)
+    filepath = DATA_HASH_DIR / DATA_HASH_FILENAME_TEMPLATE.format(hash=data_hash)
 
     if filepath.exists():
         return pd.read_pickle(filepath)
