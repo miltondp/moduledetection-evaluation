@@ -50,3 +50,10 @@ papermill --log-output generate_jobs.ipynb ${METHOD}-generate_jobs.ipynb -p meth
 cd ..
 parallel -j 3 -a tmp/paramexplo/${METHOD}.txt
 ```
+
+If the method you are running is `clustermatch*`, then replace the last lines with this:
+```bash
+cd ..
+parallel -j 1 -a tmp/paramexplo/${METHOD}.txt
+```
+since the clustermatch function will already use severa cores.
