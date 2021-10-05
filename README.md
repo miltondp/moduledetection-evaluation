@@ -47,5 +47,6 @@ papermill --log-output ${METHOD}-generate_jobs.ipynb ${METHOD}-generate_jobs.ipy
 
 # from the previous run you will see a message indicating which command you have to run next
 # for example:
+cd ..
 parallel -j 3 -a tmp/paramexplo/{METHOD}.txt
 ```
