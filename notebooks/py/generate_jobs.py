@@ -54,6 +54,8 @@ N_JOBS = 1
 
 # %% tags=["parameters"]
 method_name = None
+
+# %%
 assert method_name is not None, "You have to specify a method_name"
 
 # %% [markdown] tags=[]
