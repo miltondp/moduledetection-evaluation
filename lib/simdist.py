@@ -46,13 +46,14 @@ def cal_triangular(E, func):
     return correlations
 
 
-def get_func_output(E, func):
+def get_func_output(E, func, func_name):
     """
     TODO
     """
     DATA_HASH_DIR.mkdir(exist_ok=True)
 
     data_hash = hashlib.sha256(pd.util.hash_pandas_object(E, index=True).to_numpy()).hexdigest()
+    data_hash = f"{func_name}-{data_hash}"
     filepath = DATA_HASH_DIR / DATA_HASH_FILENAME_TEMPLATE.format(hash=data_hash)
 
     if filepath.exists():
@@ -77,7 +78,7 @@ def simdist(E, simdist_function, similarity=True, **kwargs):
     measure_similarity, func = choices[simdist_function]
 
     if simdist_function in ("clustermatch", "clustermatch_linear"):
-        simdist_matrix = get_func_output(E, func)
+        simdist_matrix = get_func_output(E, func, simdist_function)
     else:
         simdist_matrix = func(E)
         simdist_matrix = pd.DataFrame(simdist_matrix, columns=E.columns, index=E.columns)
