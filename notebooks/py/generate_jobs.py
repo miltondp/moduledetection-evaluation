@@ -52,6 +52,10 @@ conf_folder = "conf/"
 N_JOBS = 1
 # N_JOBS = mp.cpu_count()-1
 
+# %% tags=["parameters"]
+method_name = None
+assert method_name is not None, "You have to specify a method_name"
+
 # %% [markdown] tags=[]
 # # Running a method on different parameter settings and datasets
 
