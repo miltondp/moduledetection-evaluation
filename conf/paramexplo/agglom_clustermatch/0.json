@@ -1,0 +1,1 @@
+{"params": {"method": "agglom_clustermatch", "simdist_function": "clustermatch", "k": 25.0, "linkage": "complete"}, "location": "conf/paramexplo/agglom_clustermatch/0.json", "seed": 0}
