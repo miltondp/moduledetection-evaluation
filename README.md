@@ -45,15 +45,21 @@ export METHOD=agglom_pearson_abs
 cd notebooks/
 papermill --log-output generate_jobs.ipynb ${METHOD}-generate_jobs.ipynb -p method_name ${METHOD}
 
-# from the previous run you will see a message indicating which command you have to run next
-# for example:
+# next, choose the following two commands depending on whether the method is clustermatch* or not
+# not clustermatch*:
 cd ..
 parallel -j 3 -a tmp/paramexplo/${METHOD}.txt
-```
 
-If the method you are running is `clustermatch*`, then replace the last lines with this:
-```bash
+# clustermatch* (use only one core in parallel since the method already parallelizes
 cd ..
 parallel -j 1 -a tmp/paramexplo/${METHOD}.txt
 ```
-since the clustermatch function will already use severa cores.
+
+Then compute the scores for each method (you can specify the number of cores here with `n_jobs` as shown below):
+```bash
+cd notebooks/
+papermill --log-output evaluate.ipynb ${METHOD}-evaluate.ipynb -p method_name ${METHOD} # -p n_jobs 1
+```
+
+Finally, open `performance_plots.ipynb` from the browser, specify your method name (the one you specified with `${METHOD}`) at the
+top of the notebook, and run the notebook to get the final scores and plots.
