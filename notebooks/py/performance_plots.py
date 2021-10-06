@@ -49,8 +49,14 @@ conf_folder = "conf/"
 # # Settings
 
 # %%
-N_JOBS = 1
+# N_JOBS = 1
 # N_JOBS = mp.cpu_count()-1
+
+# %%
+method_name = "agglom_clustermatch_linear"
+
+# %%
+assert method_name is not None, "You have to specify a method_name"
 
 # %% [markdown] tags=[]
 # # Running a method on different parameter settings and datasets
@@ -87,7 +93,7 @@ datasetnames = [
 ]
 
 # choose the method to evaluate
-method_name = "agglom_pearson_abs" # use the dummy method to check if everything works correctly
+# method_name = "agglom_pearson_abs" # use the dummy method to check if everything works correctly
 # method_name = "agglom" # this method runs very fast, and has the best performance among clustering methods
 # method_name = "ica_zscore" # this method runs very slow, but has approx. the highest performance in the benchmark
 # method_name = "spectral_biclust" # top biclustering method
@@ -184,6 +190,7 @@ settings_method = pd.DataFrame([dict(settingid=setting["settingid"], **json.load
 # %%
 from modulescomparison import ModevalKnownmodules, ModevalCoverage
 
+
 # %% [markdown]
 # Note: If you downloaded the results from zenodo, you don't need to rerun this for "dummy", "agglom", "ica_zscore", "spectral_biclust" and "meanshift"
 
@@ -194,48 +201,47 @@ from modulescomparison import ModevalKnownmodules, ModevalCoverage
 # Evaluate by comparing with known modules
 
 # %%
-# create pool of processors
-if "pool" in locals().keys():
-    pool.close()
-pool = mp.Pool(N_JOBS)
+# # create pool of processors
+# if "pool" in locals().keys():
+#     pool.close()
+# pool = mp.Pool(N_JOBS)
 
 # %%
-settings_filtered = [setting for setting in settings if not setting["dataset_name"].startswith("human")] # only evaluate non-human datasets
-modeval = ModevalKnownmodules(settings_filtered, baseline = True)
+# settings_filtered = [setting for setting in settings if not setting["dataset_name"].startswith("human")] # only evaluate non-human datasets
+# modeval = ModevalKnownmodules(settings_filtered, baseline = True)
 
 # %%
-modeval.run(pool)
-modeval.save(settings_name)
+# modeval.run(pool)
+# modeval.save(settings_name)
 
 # %%
-modeval.load(settings_name)
+# modeval.load(settings_name)
 
 # %%
-modeval.scores
+# modeval.scores
 
 # %% [markdown]
 # ## Using the coverage of regulators
 
 # %%
-# create pool of processors
-if "pool" in locals().keys():
-    pool.close()
-pool = mp.Pool(N_JOBS)
+# # create pool of processors
+# if "pool" in locals().keys():
+#     pool.close()
+# pool = mp.Pool(N_JOBS)
 
 # %%
-settings_filtered = [setting for setting in settings if setting["dataset_name"].startswith("human")] # only evaluate human datasets
-modeval = ModevalCoverage(settings_filtered, baseline = True)
+# settings_filtered = [setting for setting in settings if setting["dataset_name"].startswith("human")] # only evaluate human datasets
+# modeval = ModevalCoverage(settings_filtered, baseline = True)
 
 # %%
-modeval.run(pool)
-modeval.save(settings_name)
+# modeval.run(pool)
+# modeval.save(settings_name)
 
 # %%
-modeval.load(settings_name)
+# modeval.load(settings_name)
 
 # %%
-modeval.scores
-
+# modeval.scores
 
 # %% [markdown]
 # ## Comparing with other methods
@@ -294,7 +300,7 @@ def score_method(scores):
 
 
 # %%
-methodnames = [method_name, "dummy", "agglom", "ica_zscore", "spectral_biclust", "meanshift"]
+methodnames = [method_name, "agglom", "ica_zscore", "spectral_biclust", "meanshift"]
 
 # %%
 finalscores = []
@@ -430,25 +436,30 @@ ax.set_xlim([0, ax.get_xlim()[1]])
 # You can also calculate scores for a particular organism, ...:
 
 # %%
-trainingscores = trainingscores_.query("organismoi == 'ecoli'").groupby("method").apply(lambda x: np.average(x.score, weights=x.weight))
-testscores = testscores_.query("organismoi == 'ecoli'").groupby("method").apply(lambda x: np.average(x.score, weights=x.weight))
+trainingscores_["organismoi"].unique()
+
+# %% [markdown]
+# # Plot for each organism
 
 # %%
-# A better way to visualize the data would be dotplot
+for organism in trainingscores_["organismoi"].unique():
+    trainingscores = trainingscores_.query(f"organismoi == '{organism}'").groupby("method").apply(lambda x: np.average(x.score, weights=x.weight))
+    testscores = testscores_.query(f"organismoi == '{organism}'").groupby("method").apply(lambda x: np.average(x.score, weights=x.weight))
+    
+    fig, ax = subplots(figsize=(5, len(trainingscores)/2))
 
-fig, ax = subplots(figsize=(5, len(trainingscores)/2))
+    methodorder = testscores.sort_values(ascending=True).index
 
-methodorder = testscores.sort_values(ascending=True).index
-
-ax.axvline(1, color = "black")
-for y, method in enumerate(methodorder):
-    ax.plot([trainingscores[method], testscores[method]], [y, y], zorder = 0, color = "grey")
-ax.scatter(trainingscores[methodorder], range(len(methodorder)), color="grey", s = 20)
-ax.scatter(testscores[methodorder], range(len(methodorder)), color="#333333", s = 100)
-ax.set_yticks(np.arange(len(methodorder)))
-ax.set_yticklabels(methodorder)
-ax.tick_params(labelsize=14)
-ax.set_xlim([0, ax.get_xlim()[1]])
-""
+    ax.axvline(1, color = "black")
+    for y, method in enumerate(methodorder):
+        ax.plot([trainingscores[method], testscores[method]], [y, y], zorder = 0, color = "grey")
+    ax.scatter(trainingscores[methodorder], range(len(methodorder)), color="grey", s = 20)
+    ax.scatter(testscores[methodorder], range(len(methodorder)), color="#333333", s = 100)
+    ax.set_yticks(np.arange(len(methodorder)))
+    ax.set_yticklabels(methodorder)
+    ax.tick_params(labelsize=14)
+    ax.set_xlim([0, ax.get_xlim()[1]])
+    ax.set_title(organism)
+    display(fig)
 
 # %%
