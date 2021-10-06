@@ -11,3 +11,4 @@ data
 workspace.code-workspace
 results.zip
 data.zip
+lib/data_hash/
