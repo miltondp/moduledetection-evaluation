@@ -300,7 +300,7 @@ def score_method(scores):
 
 
 # %%
-methodnames = [method_name, "agglom", "ica_zscore", "spectral_biclust", "meanshift"]
+methodnames = [method_name, "agglom_pearson_abs", "agglom", "ica_zscore", "spectral_biclust", "meanshift"]
 
 # %%
 finalscores = []
