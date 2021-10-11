@@ -53,7 +53,7 @@ conf_folder = "conf/"
 # N_JOBS = mp.cpu_count()-1
 
 # %%
-method_name = None  # "agglom_clustermatch"
+method_name = "agglom_clustermatch"
 
 # %%
 assert method_name is not None, "You have to specify a method_name"
@@ -300,7 +300,15 @@ def score_method(scores):
 
 
 # %%
-methodnames = [method_name, "agglom_pearson_abs", "agglom", "ica_zscore", "spectral_biclust", "meanshift"]
+methodnames = [
+    method_name,
+    "agglom_clustermatch_linear",
+    "agglom_pearson_abs",
+    "agglom",
+    "ica_zscore",
+    "spectral_biclust",
+    "meanshift"
+]
 
 # %%
 finalscores = []
