@@ -510,6 +510,29 @@ blueprints = {
         "n":[50, 100, 150, 200]
     },
     "type":"moduledetection"
+},
+"clamp_base": {
+    "staticparams":{
+        "method":"clamp_base"
+    },
+    "dynparams": {
+        "k":np.arange(25, 300.01, 25),
+        "adaptive_p":[0.01, 0.05, 0.1],
+        "qvalcutoff":10**(-np.arange(1, 11, dtype=float))
+    },
+    "type":"moduledetection"
+},
+"clamp_full": {
+    "staticparams":{
+        "method":"clamp_full",
+        "pathway_source":"CellMarker_2024"
+    },
+    "dynparams": {
+        "k":np.arange(25, 300.01, 25),
+        "adaptive_p":[0.01, 0.05, 0.1],
+        "qvalcutoff":10**(-np.arange(1, 11, dtype=float))
+    },
+    "type":"moduledetection"
 }
 
 }
@@ -576,7 +599,9 @@ methodparamsoi = {
     "baseline_sticky":["knownmodules"],
     "baseline_scalefree":["knownmodules"],
 
-    "dummy":["n"]
+    "dummy":["n"],
+    "clamp_base":["k", "adaptive_p", "qvalcutoff"],
+    "clamp_full":["k", "adaptive_p", "qvalcutoff", "pathway_source"]
 }
 
 methodparams_modulenumber = {
@@ -612,6 +637,8 @@ methodparams_modulenumber = {
     "pca":["k"],
     "nmf_max":["k"],
     "nmf_tail":["k"],
+    "clamp_base":["k"],
+    "clamp_full":["k"],
 
     "spectral_biclust":["n", "ngenes"],
     "isa":["thr_col", "thr_row"],

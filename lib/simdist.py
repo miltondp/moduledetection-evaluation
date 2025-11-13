@@ -6,7 +6,8 @@ import hashlib
 import numpy as np
 import pandas as pd
 
-from clustermatch.corr import clustermatch
+# Commented out clustermatch - not needed for CLAMP
+# from clustermatch.corr import clustermatch
 
 
 DATA_HASH_DIR = Path(__file__).parent / "data_hash"
@@ -71,17 +72,19 @@ def simdist(E, simdist_function, similarity=True, **kwargs):
     choices = {
         "pearson_correlation":[True, lambda E: np.corrcoef(E.T)],
         "pearson_correlation_absolute":[True, lambda E: np.abs(np.corrcoef(E.T))],
-        "clustermatch": [True, lambda E: clustermatch(E.T)],
-        "clustermatch_linear": [True, lambda E: clustermatch(E.T, internal_n_clusters=list(range(2, 2 + 1)))],
+        # Commented out clustermatch - not needed for CLAMP
+        # "clustermatch": [True, lambda E: clustermatch(E.T)],
+        # "clustermatch_linear": [True, lambda E: clustermatch(E.T, internal_n_clusters=list(range(2, 2 + 1)))],
     }
 
     measure_similarity, func = choices[simdist_function]
 
-    if simdist_function in ("clustermatch", "clustermatch_linear"):
-        simdist_matrix = get_func_output(E, func, simdist_function)
-    else:
-        simdist_matrix = func(E)
-        simdist_matrix = pd.DataFrame(simdist_matrix, columns=E.columns, index=E.columns)
+    # Commented out clustermatch handling
+    # if simdist_function in ("clustermatch", "clustermatch_linear"):
+    #     simdist_matrix = get_func_output(E, func, simdist_function)
+    # else:
+    simdist_matrix = func(E)
+    simdist_matrix = pd.DataFrame(simdist_matrix, columns=E.columns, index=E.columns)
 
     if (measure_similarity and similarity) or (not measure_similarity and not similarity):
         ""
