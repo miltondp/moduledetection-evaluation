@@ -1,0 +1,605 @@
+---
+title: "Analyzing human whole blood RNA-Seq data with CLAMP"
+author: "Marc Subirana-Granés and Maria Chikina"
+package: CLAMP
+output: 
+  BiocStyle::html_document:
+    fig_width: 7
+    fig_height: 5
+vignette: >
+  %\VignetteIndexEntry{Analyzing human whole blood RNA-Seq data with CLAMP}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+    collapse = TRUE,
+    comment = "#>",
+    eval = TRUE,
+    warning = FALSE,
+    message = FALSE,
+    fig.align = "center",
+    out.width = "80%"
+)
+
+library(dplyr)
+library(CLAMP)
+library(rsvd)
+library(glmnet)
+library(Matrix)
+library(hdf5r)
+library(data.table)
+library(bigstatsr)
+library(here)
+library(rsvd)
+library(Matrix)
+library(AnnotationDbi)
+library(org.Hs.eg.db)
+library(DT)
+
+set.seed(1)
+
+ext <- system.file("extdata", package = "CLAMP")
+out_dir <- rappdirs::user_cache_dir("CLAMP")
+dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
+
+ext
+```
+
+```{r logo, echo=FALSE, eval=TRUE, out.width='40%'}
+knitr::include_graphics("../man/figures/clamp.png", dpi = 800)
+```
+
+# Introduction
+
+The CLAMP (**C**urated **L**atent-variable **A**nalysis with **M**olecular **P**riors) 
+package provides a two-stage framework to extract interpretable latent
+variables from high-dimensional transcriptomic data.
+It combines a standard matrix decomposition (**CLAMPbase**) with
+pathway-guided factor refinement (**CLAMPfull**), enabling:
+
+1. **Dimensionality reduction** of gene expression matrices  
+2. **Incorporation of prior knowledge** (e.g., Gene Ontology or MSigDB)  
+3. **Adaptive regularization** of gene weights based on their agreement with pathway priors  
+4. **Cross-validation** to select robust latent variables  
+
+In CLAMPfull, pathway information is integrated through an adaptive **variance prior** that dynamically
+modulates the contribution of each gene according to how well its latent signal aligns with pathway predictions.
+This mechanism allows CLAMP to emphasize biologically consistent genes while maintaining flexibility
+to discover novel, data-driven components.  
+By combining prior-guided regularization with scalable matrix updates, CLAMPfull produces interpretable
+latent variables that capture both known and emergent biological processes across large transcriptomic datasets.
+
+## Workflow overview
+
+```{r CLAMP-workflow, include=FALSE, warning=FALSE, out.width='90%'}
+library(DiagrammeR)
+
+grViz('
+ digraph CLAMP_pipeline {
+   graph [layout=dot, rankdir=TB, splines=ortho]
+
+   // ---- Inputs & Priors (gray) ----
+   DF     [shape=folder,   style=filled, fillcolor=Gray90, label="data.frame"]
+   H5     [shape=folder,   style=filled, fillcolor=Gray90, label="H5 file"]
+   GO     [shape=cylinder, style=filled, fillcolor=Gray90, label="GO Biological Process"]
+   MSIGDB [shape=cylinder, style=filled, fillcolor=Gray90, label="MSigDB Hallmark"]
+   GTEx   [shape=cylinder, style=filled, fillcolor=Gray90, label="GTEx Tissues"]
+
+   // ---- Functions (white) ----
+   node [shape=rectangle, style=filled, fillcolor=White]
+   preDF      [label="preprocessCLAMP()"]
+   zDF        [label="zscoreCLAMP()"]
+   preFBM     [label="preprocessCLAMPFBM()"]
+   zFBM       [label="zscoreCLAMPFBM()"]
+   gmtList    [label="gmtListToSparseMat()"]
+   matchPaths [label="getMatchedPathwayMat()"]
+   chatFunc   [label="getChat()"]
+   base       [label="CLAMPbase()"]
+   full       [label="CLAMPfull()"]
+
+   // ---- Outputs (light-blue tabs) ----
+   node [shape=tab, style=filled, fillcolor=LightBlue]
+   filtered     [label="Y_filtered, rowStats"]
+   zscored      [label="Y_zscored"]
+   filteredFBM  [label="FBM_filtered, rowStats"]
+   zscoredFBM   [label="FBM_zscored"]
+   baseResult   [label="CLAMPbase.result"]
+   Chat         [label="Chat"]
+   Zmat         [label="Z"]
+   Bmat         [label="B"]
+   summaryTbl   [label="summary"]
+   Umat         [label="U"]
+
+   // ---- In-memory branch ----
+   DF -> preDF -> filtered -> zDF -> zscored -> base -> baseResult -> full
+   // ---- On-disk branch ----
+   H5 -> preFBM -> filteredFBM -> zFBM -> zscoredFBM -> base
+   // ---- Prior-knowledge branch ----
+   GO -> gmtList; MSIGDB -> gmtList; GTEx -> gmtList
+   gmtList -> matchPaths -> chatFunc -> Chat
+   Chat -> full
+   // ---- CLAMPfull outputs ----
+   full -> Zmat; full -> Bmat; full -> summaryTbl; full -> Umat
+ }')
+```
+
+# Quick Start
+
+We provide three self-contained examples:
+
+1. **Data-frame example (whole blood):**  
+   A small dataset loaded entirely into memory. Shows basic preprocessing,
+    z-scoring, and running CLAMP without on-disk storage.  
+
+2. **HDF5 example (Alzheimer’s brain):**  
+   Demonstrates how to import expression from an HDF5 file, create a file-backed FBM object,
+    and process larger datasets using the FBM interface.
+
+3. **Table example (pancreatic islets):**  
+   Illustrates reading a tab-delimited count file and comparing conditions via the B matrix.
+
+Each example follows these steps:
+
+1. **Load & preprocess data** (filter by mean/variance, then z-score).
+2. **Prepare pathway annotations** via `getGMT()` and construct the prior matrix.
+3. **Run CLAMPbase** to compute the SVD, infer the model dimension `k`, and initialize the latent variables.
+4. **Run CLAMPfull** to refine latent variables using pathway priors and variance-adaptive regularization, producing the final model and summary statistics.
+
+# Example 1: In-memory data.frame (Whole Blood)
+
+## 1. Load example data
+
+In this chunk, we load the whole-blood expression matrix.
+
+```{r load-data, message=FALSE}
+data("dataWholeBlood") # expression matrix
+
+dim(dataWholeBlood) # genes x samples
+head(dataWholeBlood) # genes x samples
+```
+
+## 2. Preprocess and z-score
+
+We first CPM-normalize the data (when needed), filter for genes with mean expression ≥ 0.5 
+and variance ≥ 0.1, and then apply z-score normalization.
+
+```{r preprocess, message=TRUE}
+#  CPM normalization
+dataWholeBlood_cpm <- cpmCLAMP(dataWholeBlood)
+
+# Filter and compute row statistics
+prep_wb <- preprocessCLAMP(
+    Y = dataWholeBlood_cpm,
+    mean_cutoff = 0.5,
+    var_cutoff = 0.1
+)
+
+# Extract filtered matrix and rowStats
+wb_Y_filtered <- prep_wb$Y_filtered
+wb_rowStats <- prep_wb$rowStats
+
+
+# Z-score normalization
+wb_Y_z <- zscoreCLAMP(
+    Y_filtered = wb_Y_filtered,
+    rowStats = wb_rowStats
+)
+```
+
+## 3. CLAMPbase initialization
+
+First, we initialize latent variables using `CLAMPbase`, which performs SVD and K inference and matrix factorization without priors.
+
+The argument `adaptive.p` defines the percentile used to determine the adaptive sparsity threshold applied to each latent variable’s gene loadings.  
+During alternating updates, negative entries in `Z` are treated as noise, and CLAMP estimates a cutoff based on the `adaptive.p` quantile of these negative values.  
+All genes with loadings below this cutoff are set to zero.  
+This produces **data-driven sparsity**, automatically filtering weak or noisy signals while retaining genes with the strongest positive contributions.  
+Lower values of `adaptive.p` (e.g., 0.01) result in stronger sparsity, while higher values (e.g., 0.1) retain more genes.  
+The default `adaptive.p = 0.05` typically yields interpretable, well-separated latent variables in large transcriptomic datasets.
+
+```{r CLAMPbase, message=FALSE}
+wb_baseRes <- CLAMPbase(
+    Y = wb_Y_z
+)
+```
+
+## 4. Prepare pathway priors
+
+Next, we build a prior matrix from curated gene sets and compute the Chat object for `CLAMPfull`.
+
+```{r priors, message=FALSE}
+# Download pathway and cell marker libraries from Enrichr
+gmtList <- list(
+  CellMarkers = getGMT(
+    "https://maayanlab.cloud/Enrichr/geneSetLibrary?mode=text&libraryName=CellMarker_2024",
+    "CellMarker_2024"
+  ),
+  KEGG = getGMT(
+    "https://maayanlab.cloud/Enrichr/geneSetLibrary?mode=text&libraryName=KEGG_2021_Human",
+    "KEGG_2021_Human"
+  )
+)
+
+# Combine into a single sparse matrix
+pathMatCell <- gmtListToSparseMat(gmtList)
+
+# Load additional xCell reference matrix
+data("xCell")
+
+# Match pathways to the gene space of whole blood
+matchedPathsWB <- getMatchedPathwayMatList(
+  pathMatCell, xCell,
+  new.genes = rownames(dataWholeBlood),
+  min.genes = 2
+)
+```
+
+## 5. CLAMPfull
+
+Finally, we refine the base model by integrating pathway priors using `CLAMPfull`, 
+which applies cross-validation to optimize latent variable regularization. 
+In this new version, `CLAMPfull` incorporates **variable priors** that adjust 
+the influence of each pathway adaptively, improving convergence and stability 
+across heterogeneous datasets.
+
+```{r CLAMPfull, message=FALSE}
+wb_fullRes <- CLAMPfull(
+    wb_Y_z,
+    priorMat = matchedPathsWB,
+    clamp.base.result = wb_baseRes,
+    use_cpp = TRUE
+  )
+```
+
+## 6. Display significant latent variables
+
+```{r summary-table}
+# Display significant latent variables
+wb_summary_df <- as.data.frame(wb_fullRes$summary) %>%
+    dplyr::filter(FDR < 0.05 & AUC > 0.7) %>%
+    dplyr::arrange(FDR) %>%
+    dplyr::rename(LV = "LV_index") %>%
+    dplyr::mutate(LV = paste0("LV", LV)) %>%
+    dplyr::select(LV, pathway, FDR, AUC)
+
+datatable(
+    wb_summary_df,
+    filter = "top",
+    options = list(
+        pageLength = 10,
+        autoWidth  = TRUE
+    ),
+    rownames = FALSE,
+    class = "stripe hover compact"
+) %>%
+    formatSignif(c("AUC", "FDR"), 3)
+```
+
+In whole-blood RNA-Seq, CLAMP latent variables capture transcriptional programs central to oxygen transport, immune activity, and hematopoiesis. The leading components highlight heme metabolism, mitochondrial ATP synthesis coupled electron transport (GO:0042775), and oxidative phosphorylation (GO:0006119), which are core pathways for energy generation and oxygen delivery in blood. Heme metabolism reflects erythroid lineage differentiation and hemoglobin biosynthesis in red blood cell precursors, while mitochondrial and oxidative phosphorylation signals represent the bioenergetic demands of leukocytes and platelets during immune and hemostatic activation. Consistently, enriched signatures include Ribosome (LV2), Neutrophil and Plasma cell markers (LV19, LV23), Natural Killer cell pathways (LV12), and Erythrocyte transcriptional programs (LV27), confirming that CLAMP effectively distinguishes immune and erythroid cell–type–specific expression within peripheral blood. The GTEx signature “Whole Blood Male 70–79 Up” further validates the tissue specificity of these latent variables.
+
+# Example 2: File-Backed Matrix (Alzheimer’s Brain)
+
+This example uses HDF5 data from the ARCHS4 resource (Lachmann et al., 2018; DOI: https://doi.org/10.1038/s41467-018-03751-6) focused on Alzheimer’s brain samples from a *Neurobiology of Disease* study (Hoogland et al., 2017; DOI: https://doi.org/10.1016/j.nbd.2017.06.008). It demonstrates the on‑disk workflow with a file‑backed FBM to handle large‑scale transcriptomic datasets.
+
+## 1. Cleanup old FBM files
+
+```{r fbm-cleanup, message=FALSE}
+output_dir <- here("output", "alzFBM")
+fbm_base <- file.path(output_dir, "FBMalz")
+bk_paths <- paste0(fbm_base, c(".bk", ".bk_preproc.bk", ".bk_preproc_filtered.bk"))
+file.remove(bk_paths[file.exists(bk_paths)])
+```
+
+### Computing CPM on a File-Backed Matrix (FBM)
+
+For file-backed matrices (FBMs), you can compute counts-per-million (CPM) in-place—without loading the entire dataset into
+RAM—using the `cpmCLAMPFBM()` function from **CLAMP**:
+
+## 2. Load HDF5 expression
+
+```{r hdf5-load, message=FALSE}
+
+# waiting for bioconductor data package
+# alz_path <- system.file("extdata", "human_gene_v2.5_alz.h5", package = "CLAMPData")
+
+alz_path <- here('inst', "extdata", "human_gene_v2.5_alz.h5")
+h5 <- H5File$new(alz_path, mode = "r")
+expr_mat <- t(h5[["data/expression"]]$read())
+genes <- h5[["meta/genes/symbol"]]$read()
+samples <- h5[["meta/samples/geo_accession"]]$read()
+h5$close_all()
+colnames(expr_mat) <- samples
+rownames(expr_mat) <- genes
+```
+
+## 3. Construct file‑backed FBM
+
+```{r fbm-construct, message=FALSE}
+dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+alzFBM <- FBM(nrow = nrow(expr_mat), ncol = ncol(expr_mat), backingfile = fbm_base)
+blk <- 1000
+
+for (i in seq_len(ceiling(nrow(expr_mat) / blk))) {
+    rows <- ((i - 1) * blk + 1):min(i * blk, nrow(expr_mat))
+    alzFBM[rows, ] <- expr_mat[rows, , drop = FALSE]
+}
+```
+
+## 4. CPM, preprocess and z‑score FBM
+
+```{r fbm-preprocess, message=FALSE}
+prep_alz <- preprocessCLAMPFBM(
+    fbm = alzFBM,
+    mean_cutoff = 0.5,
+    var_cutoff = 0.1
+)
+
+alz_fbm_filt <- prep_alz$fbm_filtered
+alz_rowStats <- prep_alz$rowStats
+zscoreCLAMPFBM(alz_fbm_filt, alz_rowStats)
+alz_genes <- genes[prep_alz$kept_rows]
+```
+
+## 5. CLAMPbase 
+
+```{r fbm-CLAMPbase, message=FALSE}
+alz_baseRes <- CLAMPbase(
+    Y = alz_fbm_filt
+)
+```
+
+## 6. Prepare pathway priors
+
+```{r fbm-priors, message=FALSE}
+alz_gmtList <- list(
+    GTEx_Tissues = getGMT("https://maayanlab.cloud/Enrichr/geneSetLibrary?mode=text&libraryName=GTEx_Tissues_V8_2023"),
+    BP = getGMT("https://maayanlab.cloud/Enrichr/geneSetLibrary?mode=text&libraryName=GO_Biological_Process_2025"),
+    MSigDB = getGMT("https://maayanlab.cloud/Enrichr/geneSetLibrary?mode=text&libraryName=MSigDB_Hallmark_2020")
+)
+
+alz_pathMat <- gmtListToSparseMat(alz_gmtList)
+alz_matched <- getMatchedPathwayMat(alz_pathMat, alz_genes)
+```
+
+## 7. CLAMPfull
+
+```{r fbm-CLAMPfull, message=FALSE}
+alz_fullRes <- CLAMPfull(
+    alz_fbm_filt,
+    priorMat = alz_matched,
+    clamp.base.result = alz_baseRes,
+    use_cpp = TRUE
+  )
+```
+
+## 8. Display significant latent variables
+
+```{r fbm-summary}
+alz_summary_df <- as.data.frame(alz_fullRes$summary) %>%
+    filter(FDR < 0.05 & AUC > 0.7) %>%
+    arrange(FDR) %>%
+    dplyr::rename(LV = "LV_index") %>%
+    dplyr::mutate(LV = paste0("LV", LV)) %>%
+    dplyr::select(LV, pathway, FDR, AUC)
+
+datatable(
+    alz_summary_df,
+    filter = "top",
+    options = list(
+        pageLength = 10,
+        autoWidth  = TRUE
+    ),
+    rownames = FALSE,
+    class = "stripe hover compact"
+) %>%
+    formatSignif(c("AUC", "FDR"), 3)
+```
+
+For the Alzheimer’s brain dataset, the dominant latent variable (LV3) shows strong enrichment for GTEx tissue signatures corresponding to the “Brain – Spinal Cord (Cervical C-1)” across multiple age and sex groups (e.g., Male 50–59 Up, Female 60–69 Up; FDR ≈ 4×10⁻¹³, AUC > 0.99), confirming robust neuroanatomical tissue specificity. Additional latent variables capture complementary brain-related signatures, including Frontal Cortex (BA9) and Substantia Nigra, suggesting that CLAMP effectively recovers distinct yet biologically coherent transcriptional programs across cortical and subcortical regions. Beyond tissue enrichment, biological processes associated with these latent variables highlight mechanisms relevant to neuronal signaling and neurodegeneration, such as Cytoplasmic Translation, Neurotransmitter Secretion, Regulation of Neurotransmitter Receptor Activity, and Ubiquitin-Dependent Proteolysis, emphasizing protein homeostasis, synaptic regulation, and energy metabolism in the Alzheimer’s brain.
+
+# Example 3: Tab-Delimited Count File (Pancreatic Islets)
+
+In this example, we apply the in‑memory CLAMP workflow to RNA‑Seq count data from GEO accession **GSE164416** 
+(Wigger *et al.* 2021; “Multi‑omics profiling of living human pancreatic islet donors reveals heterogeneous beta-cell
+trajectories towards type 2 diabetes”, DOI: 10.1038/s42255-021-00420-9). After preprocessing the raw counts and fitting
+the CLAMP model, we perform a differential analysis of latent‑variable activities to compare non‑diabetic (ND) and type 2
+diabetic (T2D) samples.
+
+## 1. Load count data and map gene symbols
+
+```{r islet-load, message=FALSE}
+# waiting for bioconductor data package
+# islet_file <- system.file("extdata", "GSE164416_DP_htseq_counts.txt.gz", package = "CLAMPData")
+
+islet_file <- here('inst', "extdata", "GSE164416_DP_htseq_counts.txt.gz")
+
+islet_df <- read.table( islet_file, header = TRUE, stringsAsFactors = FALSE ) 
+
+islet_df$symbol <- mapIds( org.Hs.eg.db,
+                           keys = islet_df$ensembl,
+                           column = "SYMBOL",
+                           keytype = "ENSEMBL",
+                           multiVals = "first" )
+
+islet_df <- islet_df[!is.na(islet_df$symbol), ]
+```
+
+## 2. Aggregate counts by gene symbol
+
+```{r islet-aggregate, message=FALSE}
+# Sum counts per symbol
+setDT(islet_df)
+num_cols <- names(islet_df)[sapply(islet_df, is.numeric)]
+expr <- islet_df[, lapply(.SD, sum), by = symbol, .SDcols = num_cols]
+expr <- as.data.frame(expr)
+rownames(expr) <- expr$symbol
+expr$symbol <- NULL
+expr <- as.matrix(expr)
+```
+
+## 3. CPM, preprocess and z-score
+
+```{r islet-preprocess, message=FALSE}
+prep_is <- preprocessCLAMP(
+    Y = expr,
+    mean_cutoff = 0.5,
+    var_cutoff = 0.1
+)
+
+iso_Yf <- prep_is$Y_filtered
+iso_rowS <- prep_is$rowStats
+
+iso_Yz <- zscoreCLAMP(Y_filtered = iso_Yf,
+                      rowStats = iso_rowS)
+
+```
+
+## 4. CLAMPbase
+
+```{r islet-CLAMPbase, message=FALSE}
+islet_baseRes <- CLAMPbase(
+    Y = iso_Yz
+)
+```
+
+## 5. Prepare pathway priors
+
+```{r islet-priors, message=FALSE}
+islet_gmtList <- list(
+    GTEx_Tissues = getGMT("https://maayanlab.cloud/Enrichr/geneSetLibrary?mode=text&libraryName=GTEx_Tissues_V8_2023"),
+    Diabetes_Perturbations = getGMT("https://maayanlab.cloud/Enrichr/geneSetLibrary?mode=text&libraryName=Diabetes_Perturbations_GEO_2022"),
+    MSigDB_Hallmark = getGMT("https://maayanlab.cloud/Enrichr/geneSetLibrary?mode=text&libraryName=MSigDB_Hallmark_2020")
+)
+
+islet_pathMat <- gmtListToSparseMat(islet_gmtList)
+islet_matched <- getMatchedPathwayMat(islet_pathMat, rownames(iso_Yz))
+islet_chatObj <- getChat(islet_matched)
+```
+
+## 8. CLAMPfull
+
+```{r islet-CLAMPfull, message=FALSE}
+islet_fullRes <- CLAMPfull(
+    iso_Yz,
+    priorMat = islet_matched,
+    clamp.base.result = islet_baseRes,
+    use_cpp = TRUE
+  )
+```
+
+## 9. Display significant latent variables
+
+```{r islet-summary}
+islet_summary_df <- as.data.frame(islet_fullRes$summary) %>%
+    filter(FDR < 0.05 & AUC > 0.7) %>%
+    arrange(FDR) %>%
+    dplyr::rename(LV = "LV_index") %>%
+    dplyr::mutate(LV = paste0("LV", LV)) %>%
+    dplyr::select(LV, pathway, FDR, AUC)
+
+datatable(
+    islet_summary_df,
+    filter = "top",
+    options = list(
+        pageLength = 10,
+        autoWidth  = TRUE
+    ),
+    rownames = FALSE,
+    class = "stripe hover compact"
+) %>%
+    formatSignif(c("AUC", "FDR"), 3)
+```
+
+In pancreatic islet RNA-Seq, CLAMP latent variables robustly capture islet-specific endocrine and metabolic programs. The top latent variable aligns with the GTEx “Pancreas Female 30–39 Up” signature, confirming tissue specificity in the pancreatic context. Enrichment for Myc Targets V1 and TNF-α signaling via NF-κB reflects proliferative and inflammatory activity characteristic of pancreatic islets. Protein Secretion and Oxidative Phosphorylation highlight secretory capacity and mitochondrial metabolism essential for insulin production and glucose regulation. Moreover, diabetic islet gene sets such as GSE41203 Non-Obese Diabetic Islets DN and GSE94846 PAX8-Overexpression Islet Up reveal disease-related and developmental perturbations linked to diabetes pathophysiology. Together, these results demonstrate that CLAMP effectively distinguishes both physiological and pathological transcriptional programs in pancreatic islets.
+
+## 10. Differential latent-variable expression between conditions
+
+Rows of the B matrix correspond to LVs and columns to samples. By grouping samples by condition (ND vs T2D),
+we compute average LV expression per group to identify LVs that differ between healthy and diabetic islets
+
+```{r islet-diff, message=FALSE}
+B_df <- as.data.frame(as.matrix(islet_fullRes$B)) %>%
+    dplyr::mutate(LV = rownames(.))
+
+# waiting for bioconductor data package
+# islet_meta <- system.file("extdata", "islets_metadata.csv", package = "CLAMPData")
+
+islet_meta <- here('inst', "extdata", "islets_metadata.csv")
+
+iselt_metadata <- read.csv(islet_meta, header = TRUE)
+
+sample_types <- iselt_metadata %>%
+    dplyr::mutate(
+        id   = as.character(id),
+        type = as.character(type)
+    )
+
+sample_cols <- setdiff(colnames(B_df), "LV")
+nd_cols <- intersect(sample_cols, sample_types$id[sample_types$type == "ND"])
+other_cols <- intersect(sample_cols, sample_types$id[sample_types$type != "ND"])
+
+if (length(nd_cols) == 0 || length(other_cols) == 0) {
+    stop("No matching ND or non-ND sample columns found")
+}
+
+lv_stats_all_vs_nd <- B_df %>%
+    dplyr::rowwise() %>%
+    dplyr::mutate(
+        Mean_ND = mean(dplyr::c_across(dplyr::all_of(nd_cols))),
+        Mean_All = mean(dplyr::c_across(dplyr::all_of(other_cols))),
+        Mean_Diff = Mean_All - Mean_ND,
+        P_Value = stats::wilcox.test(
+            dplyr::c_across(dplyr::all_of(nd_cols)),
+            dplyr::c_across(dplyr::all_of(other_cols))
+        )$p.value
+    ) %>%
+    dplyr::ungroup() %>%
+    dplyr::mutate(FDR = stats::p.adjust(P_Value, method = "fdr")) %>%
+    dplyr::select(LV, Mean_ND, Mean_All, Mean_Diff, P_Value, FDR) %>%
+    dplyr::arrange(FDR)
+
+sig_lv_all_vs_nd <- lv_stats_all_vs_nd %>%
+    dplyr::filter(FDR < 0.05)
+
+sig_pathway <- islet_summary_df %>%
+    dplyr::filter(FDR < 0.05 & AUC > 0.7) %>%
+    dplyr::filter(LV %in% sig_lv_all_vs_nd$LV) %>%
+    dplyr::arrange(FDR) %>%
+    dplyr::select(LV, pathway, FDR, AUC)
+
+datatable(
+    sig_pathway,
+    filter = "top",
+    options = list(
+        pageLength = 10,
+        autoWidth  = TRUE
+    ),
+    rownames = FALSE,
+    class = "stripe hover compact"
+) %>%
+    formatSignif(c("AUC", "FDR"), 3)
+```
+
+Differential latent-variable expression highlights diabetes-related inflammation and pancreatic specificity. LV8 is enriched for TNF-α signaling via NF-κB and cytokine-response pathways, reflecting inflammatory stress in β cells. LV3, associated with adipose and CBP-knockout islet gene sets, suggests metabolic reprogramming and lipid-driven adaptation under diabetic conditions. LV2 captures variation in α- versus β-cell composition, consistent with endocrine cell-type imbalance. The enrichment of pancreas-specific GTEx signatures such as “Pancreas Female 30–39 Up” further confirms the tissue relevance of these latent variables. Together, these findings indicate that CLAMP effectively disentangles inflammatory, metabolic, and compositional axes of transcriptional variability in diabetic islets.
+
+# Parallelization in CLAMP
+
+CLAMP supports multi-core parallelization for computationally intensive operations, particularly when working with large datasets and file-backed matrices (FBMs).
+The `ncores` parameter can be used in several key functions to speed up processing.
+
+The following CLAMP functions accept an `ncores` parameter:
+
+- `CLAMPbase()` 
+- `CLAMPfull()`
+- `projectCLAMP()` 
+- `preprocessCLAMPFBM()`
+- `zscoreCLAMPFBM()`
+- `cpmCLAMPFBM()`
+
+# Session Information
+
+```{r session-info}
+sessionInfo()
+```

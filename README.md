@@ -21,16 +21,17 @@ cd lib
 python setup.py build_ext --inplace
 ```
 
-You also need to clone the [clustermatch](https://github.com/greenelab/clustermatch-gene-expr) repository and export this variable:
+## Install CLAMP
 
 ```bash
-export PYTHONPATH=[CLUSTERMATCH_REPO_DIR]/libs:`pwd`/lib:$PYTHONPATH
-export NUMBA_NUM_THREADS=3  # number of cores that will be used by clustermatch
-```
+conda install -c conda-forge -c bioconda r-base=4.4 r-essentials r-bigstatsr r-data.table r-dplyr r-rsvd r-glmnet r-matrix r-knitr r-here r-tibble r-tidyr r-devtools r-irkernel  r-knitr r-pkgdown hdf5 r-hdf5r bioconductor-rhdf5 bioconductor-qvalue bioconductor-biomart bioconductor-recount3 bioconductor-preprocesscore bioconductor-fgsea bioconductor-org.Hs.eg.db bioconductor-ensdb.hsapiens.v86 bioconductor-experimenthub bioconductor-genomeinfodbdata bioconductor-bioccheck bioconductor-complexheatmap bioconductor-biocstyle bioconductor-experimenthubdata r-ggrepel r-irlba rpy2 r-fdrtool
 
-If everything was installed properly, this command should not raise an error:
-```bash
-python -c "from clustermatch.coef import cm"
+#REPO_PATH=~/path/to/CLAMP
+REPO_PATH=/home/miltondp/projects/clamp/CLAMP
+
+Rscript -e "devtools::install_local('$REPO_PATH', force=TRUE, dependencies=FALSE)"
+
+Rscript -e "library(CLAMP); cat('CLAMP version:', packageVersion('CLAMP'), '\n')"
 ```
 
 # Running
