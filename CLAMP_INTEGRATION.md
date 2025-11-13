@@ -6,6 +6,40 @@ Successfully integrated the CLAMP R package into the gene module detection evalu
 - **clamp_base**: SVD-based matrix factorization without pathway priors
 - **clamp_full**: Matrix factorization with pathway-guided refinement
 
+## Quick Start: Complete Workflow
+
+```bash
+# 1. Setup environment (from root directory)
+export PYTHONPATH=`realpath lib`
+
+# 2. Generate jobs for clamp_base
+cd notebooks/
+papermill --log-output generate_jobs.ipynb clamp_base-generate_jobs.ipynb -p method_name clamp_base
+
+# 3. Run jobs in parallel
+cd ..
+parallel -j 3 -a tmp/paramexplo/clamp_base.txt
+
+# 4. Evaluate performance
+cd notebooks/
+export PYTHONPATH=`realpath ../lib`  # Re-export if in new shell
+papermill --log-output evaluate.ipynb clamp_base-evaluate.ipynb -p method_name clamp_base -p n_jobs 3
+
+# 5. (Optional) Repeat for clamp_full
+cd ..
+export PYTHONPATH=`realpath lib`
+cd notebooks/
+papermill --log-output generate_jobs.ipynb clamp_full-generate_jobs.ipynb -p method_name clamp_full
+cd ..
+parallel -j 1 -a tmp/paramexplo/clamp_full.txt
+cd notebooks/
+export PYTHONPATH=`realpath ../lib`
+papermill --log-output evaluate.ipynb clamp_full-evaluate.ipynb -p method_name clamp_full -p n_jobs 3
+
+# 6. Generate plots (open in Jupyter/browser)
+# Open notebooks/performance_plots.ipynb and add "clamp_base" and "clamp_full" to methods list
+```
+
 ## Files Modified
 
 ### 1. `lib/clustering.py`
@@ -75,6 +109,14 @@ Successfully integrated the CLAMP R package into the gene module detection evalu
 
 ## Next Steps for Testing
 
+### 0. Setup Environment (Required)
+From the root directory of the project:
+```bash
+export PYTHONPATH=`realpath lib`
+```
+
+This must be run before any papermill commands to ensure the custom modules in `lib/` are importable.
+
 ### 1. Generate Parameter Sweep Jobs
 ```bash
 cd notebooks/
@@ -94,12 +136,18 @@ Note: Use `-j 3` or lower since CLAMP is R-based and may use multiple cores
 ### 3. Evaluate Performance
 ```bash
 cd notebooks/
+# Make sure PYTHONPATH is still set
+export PYTHONPATH=`realpath ../lib`
 papermill --log-output evaluate.ipynb clamp_base-evaluate.ipynb -p method_name clamp_base -p n_jobs 3
 ```
 
 ### 4. Repeat for clamp_full
 ```bash
+# From root directory, ensure PYTHONPATH is set
+export PYTHONPATH=`realpath lib`
+
 # Generate jobs
+cd notebooks/
 papermill --log-output generate_jobs.ipynb clamp_full-generate_jobs.ipynb -p method_name clamp_full
 
 # Run jobs (may be slower due to pathway downloads)
@@ -108,6 +156,7 @@ parallel -j 1 -a tmp/paramexplo/clamp_full.txt  # Use -j 1 since pathway downloa
 
 # Evaluate
 cd notebooks/
+export PYTHONPATH=`realpath ../lib`  # Ensure PYTHONPATH is set from notebooks directory
 papermill --log-output evaluate.ipynb clamp_full-evaluate.ipynb -p method_name clamp_full -p n_jobs 3
 ```
 
@@ -168,8 +217,19 @@ Expected performance: CLAMP should perform comparably or better than PCA, especi
 
 ## Troubleshooting
 
+### Issue: "ModuleNotFoundError: No module named 'clustering'" or similar import errors
+**Solution:** Set PYTHONPATH before running papermill:
+```bash
+export PYTHONPATH=`realpath lib`  # From root directory
+# OR
+export PYTHONPATH=`realpath ../lib`  # From notebooks/ directory
+```
+
 ### Issue: "fdrtool not installed"
-**Solution:** `R -e "install.packages('fdrtool', repos='https://cloud.r-project.org')"`
+**Solution:**
+```bash
+R -e "install.packages('fdrtool', repos='https://cloud.r-project.org')"
+```
 
 ### Issue: "Conversion 'py2rpy' not defined for DataFrame"
 **Solution:** Already handled using `localconverter` with `pandas2ri.converter`
