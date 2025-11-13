@@ -24,7 +24,7 @@ python setup.py build_ext --inplace
 ## Install CLAMP
 
 ```bash
-conda install -c conda-forge -c bioconda r-base=4.4 r-essentials r-bigstatsr r-data.table r-dplyr r-rsvd r-glmnet r-matrix r-knitr r-here r-tibble r-tidyr r-devtools r-irkernel  r-knitr r-pkgdown hdf5 r-hdf5r bioconductor-rhdf5 bioconductor-qvalue bioconductor-biomart bioconductor-recount3 bioconductor-preprocesscore bioconductor-fgsea bioconductor-org.Hs.eg.db bioconductor-ensdb.hsapiens.v86 bioconductor-experimenthub bioconductor-genomeinfodbdata bioconductor-bioccheck bioconductor-complexheatmap bioconductor-biocstyle bioconductor-experimenthubdata r-ggrepel r-irlba rpy2 r-fdrtool
+conda install -c conda-forge -c bioconda r-base=4.4 r-essentials r-bigstatsr r-data.table r-dplyr r-rsvd r-glmnet r-matrix r-knitr r-here r-tibble r-tidyr r-devtools r-irkernel  r-knitr r-pkgdown hdf5 r-hdf5r bioconductor-rhdf5 bioconductor-qvalue bioconductor-biomart bioconductor-recount3 bioconductor-preprocesscore bioconductor-fgsea bioconductor-org.Hs.eg.db bioconductor-ensdb.hsapiens.v86 bioconductor-experimenthub bioconductor-genomeinfodbdata bioconductor-bioccheck bioconductor-complexheatmap bioconductor-biocstyle bioconductor-experimenthubdata r-ggrepel r-irlba rpy2 r-fdrtool papermill
 
 #REPO_PATH=~/path/to/CLAMP
 REPO_PATH=/home/miltondp/projects/clamp/CLAMP
