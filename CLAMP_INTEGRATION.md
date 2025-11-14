@@ -42,15 +42,17 @@ papermill --log-output evaluate.ipynb clamp_full-evaluate.ipynb -p method_name c
 
 ## Files Modified
 
-### 1. `lib/clustering.py`
+### 1. `lib/methods/clustering.py`
 **Added:**
-- `clamp_base(E, k, adaptive_p, qvalcutoff, **kwargs)` - CLAMP base method
-- `clamp_full(E, k, adaptive_p, qvalcutoff, pathway_source, **kwargs)` - CLAMP full method
-- `_ica_fdrtool(E, source, qvalcutoff)` - Helper function for FDR-based module extraction
-- rpy2 imports with proper pandas2ri/numpy2ri conversion setup
+- `clamp_base(E, k, adaptive_p, qvalcutoff, **kwargs)` - CLAMP base method (line ~398)
+- `clamp_full(E, k, adaptive_p, qvalcutoff, pathway_source, **kwargs)` - CLAMP full method (line ~443)
+- Both methods placed in the decomposition/factorization section alongside `pca`, `ica_*`, and `nmf_*` methods
 
 **Modified:**
-- Commented out `agglom_clustermatch` and `agglom_clustermatch_linear` (clustermatch dependency not available)
+- `_ica_fdrtool(E, source, qvalcutoff)` - Updated with comprehensive docstring (line ~566)
+- rpy2 imports updated with proper pandas2ri/numpy2ri conversion and deprecation handling
+
+**Note:** The file `lib/clustering.py` previously created during development has been deprecated. All CLAMP methods are now properly integrated into `lib/methods/clustering.py` following the project architecture.
 
 ### 2. `lib/simdist.py`
 **Modified:**
@@ -209,11 +211,12 @@ CLAMP is most similar to PCA in this benchmark:
 
 Expected performance: CLAMP should perform comparably or better than PCA, especially clamp_full on datasets where pathway priors are informative.
 
-## Files Created
+## Files Created/Modified
 
-- `lib/clustering.py` - CLAMP method implementations
+- `lib/methods/clustering.py` - CLAMP methods integrated into main clustering module
 - `test_clamp.py` - Simple test script (works with real data only)
 - `CLAMP_INTEGRATION.md` - This documentation
+- `lib/clustering.py` - **DEPRECATED** - Previously used during development, now superseded by proper integration
 
 ## Troubleshooting
 
