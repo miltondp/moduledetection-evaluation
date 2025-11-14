@@ -444,8 +444,8 @@ def clamp_base(E, k=200, adaptive_p=0.05, qvalcutoff=1e-3, **kwargs):
     # Extract Z matrix (genes × latent variables)
     Z_matrix = np.array(ro.r["clamp_result"].rx2("Z"))
 
-    # Convert to modules using FDR thresholding
-    modules = _ica_fdrtool(E, Z_matrix, qvalcutoff)
+    # Convert to modules using CLAMP-specific FDR thresholding
+    modules = _clamp_fdrtool(E, Z_matrix, qvalcutoff)
 
     return modules
 
@@ -517,8 +517,8 @@ def clamp_full(E, k=200, adaptive_p=0.05, qvalcutoff=1e-3, pathway_source="CellM
     # Extract Z matrix (genes × latent variables)
     Z_matrix = np.array(ro.r["full_result"].rx2("Z"))
 
-    # Convert to modules using FDR thresholding
-    modules = _ica_fdrtool(E, Z_matrix, qvalcutoff)
+    # Convert to modules using CLAMP-specific FDR thresholding
+    modules = _clamp_fdrtool(E, Z_matrix, qvalcutoff)
 
     return modules
 
@@ -604,6 +604,76 @@ def _ica_fdrtool(E, source, qvalcutoff):
         genes = E.columns[qvals < qvalcutoff]
 
         modules.append(Module(genes))
+    return modules
+
+def _clamp_fdrtool(E, source, qvalcutoff, min_nonzero=20):
+    """
+    Convert CLAMP's sparse gene loadings to discrete modules using FDR thresholding.
+
+    CLAMP produces sparse loadings (many zeros) due to adaptive sparsity. This function:
+    1. Only applies fdrtool to non-zero values (genes CLAMP considers relevant)
+    2. Falls back to percentile-based thresholding if fdrtool fails
+    3. Handles edge cases where components have very few non-zero values
+
+    Parameters:
+    -----------
+    E : pandas.DataFrame
+        Expression matrix (samples × genes) - used to get gene names
+    source : numpy.ndarray
+        Gene loadings matrix (genes × components) from CLAMP
+    qvalcutoff : float
+        FDR q-value threshold for significance
+    min_nonzero : int
+        Minimum number of non-zero values required to run fdrtool (default: 20)
+
+    Returns:
+    --------
+    list of Module objects
+    """
+    importr("fdrtool")
+    rfdrtool = ro.r["fdrtool"]
+
+    modules = []
+
+    for comp_idx, source_row in enumerate(source.T):
+        # CLAMP sets weak loadings to exactly 0, so identify non-zero genes
+        nonzero_mask = source_row != 0
+        n_nonzero = np.sum(nonzero_mask)
+
+        # Case 1: Very few non-zero values - use all non-zero genes
+        if n_nonzero < 10:
+            genes = E.columns[nonzero_mask]
+            modules.append(Module(genes))
+            continue
+
+        # Case 2: Some non-zero values but too few for fdrtool - use top percentile
+        if n_nonzero < min_nonzero:
+            # Use top 50% of non-zero values as significant
+            threshold = np.median(source_row[nonzero_mask])
+            genes = E.columns[(source_row > threshold) & nonzero_mask]
+            modules.append(Module(genes))
+            continue
+
+        # Case 3: Enough non-zero values - try fdrtool on non-zero values only
+        try:
+            nonzero_values = source_row[nonzero_mask]
+            rresults = rfdrtool(ro.FloatVector(nonzero_values),
+                              plot=False, cutoff_method="fndr", verbose=False)
+            qvals = np.array(rresults.rx2("qval"))
+
+            # Map q-values back to original gene indices
+            nonzero_indices = np.where(nonzero_mask)[0]
+            significant_indices = nonzero_indices[qvals < qvalcutoff]
+            genes = E.columns[significant_indices]
+
+        except Exception as e:
+            # fdrtool failed - fall back to percentile-based threshold
+            # Use top 30% of non-zero values as significant
+            threshold = np.percentile(source_row[nonzero_mask], 70)
+            genes = E.columns[(source_row >= threshold) & nonzero_mask]
+
+        modules.append(Module(genes))
+
     return modules
 
 def _ica_fdrtool_signed(E, source, qvalcutoff):
