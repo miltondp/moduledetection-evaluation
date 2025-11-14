@@ -405,7 +405,7 @@ def pca(E, k=200, qvalcutoff=1e-3, **kwargs):
 
     return modules
 
-def clamp_base(E, k=100, adaptive_p=0.05, qvalcutoff=1e-3, **kwargs):
+def clamp_base(E, k=200, adaptive_p=0.05, qvalcutoff=1e-3, **kwargs):
     """
     CLAMP base method: SVD-based matrix factorization without pathway priors.
 
@@ -450,7 +450,7 @@ def clamp_base(E, k=100, adaptive_p=0.05, qvalcutoff=1e-3, **kwargs):
     return modules
 
 
-def clamp_full(E, k=100, adaptive_p=0.05, qvalcutoff=1e-3, pathway_source="CellMarker_2024", **kwargs):
+def clamp_full(E, k=200, adaptive_p=0.05, qvalcutoff=1e-3, pathway_source="CellMarker_2024", **kwargs):
     """
     CLAMP full method: Matrix factorization with pathway-guided refinement.
 
