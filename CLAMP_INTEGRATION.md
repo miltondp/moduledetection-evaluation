@@ -9,7 +9,9 @@ Successfully integrated the CLAMP R package into the gene module detection evalu
 ## Quick Start: Complete Workflow
 
 ```bash
-# 1. Setup environment (from root directory)
+# 1. Activate conda environment and setup PYTHONPATH (from root directory)
+source ~/software/miniforge3/etc/profile.d/conda.sh
+conda activate clamp-module-eval
 export PYTHONPATH=`realpath lib`
 
 # 2. Generate jobs for clamp_base
@@ -62,13 +64,15 @@ papermill --log-output evaluate.ipynb clamp_full-evaluate.ipynb -p method_name c
 **Added:**
 - `clamp_base` blueprint with parameter grid:
   - `k`: 25-300 in steps of 25 (12 values)
-  - `adaptive_p`: [0.01, 0.05, 0.1] (3 values)
   - `qvalcutoff`: 10^(-1 to -10) (10 values)
-  - Total: 360 parameter combinations per dataset
+  - `adaptive_p`: 0.05 (fixed, not explored)
+  - Total: 120 parameter combinations per dataset
 
 - `clamp_full` blueprint with same parameter grid plus:
   - `pathway_source`: "CellMarker_2024" (static)
-  - Total: 360 parameter combinations per dataset
+  - Total: 120 parameter combinations per dataset
+
+**Note:** `adaptive_p` was removed from parameter exploration (see git commit 7edaec6) to match PCA's parameter grid. The fixed value of 0.05 is used for all runs.
 
 - Added entries to `methodparamsoi` and `methodparams_modulenumber` dicts
 
@@ -101,7 +105,7 @@ papermill --log-output evaluate.ipynb clamp_full-evaluate.ipynb -p method_name c
 
 5. **Parameter Ranges**:
    - `k` (25-300): Standard range used by PCA, ICA, and other factorization methods
-   - `adaptive_p` (0.01-0.1): Controls sparsity in gene loadings
+   - `adaptive_p`: Fixed at 0.05 (not explored in parameter sweep)
    - `qvalcutoff` (10^-10 to 10^-1): FDR threshold for significance
 
 ## Dependencies Installed
@@ -114,10 +118,12 @@ papermill --log-output evaluate.ipynb clamp_full-evaluate.ipynb -p method_name c
 ### 0. Setup Environment (Required)
 From the root directory of the project:
 ```bash
+source ~/software/miniforge3/etc/profile.d/conda.sh
+conda activate clamp-module-eval
 export PYTHONPATH=`realpath lib`
 ```
 
-This must be run before any papermill commands to ensure the custom modules in `lib/` are importable.
+This must be run before any papermill commands to ensure the conda environment is active and custom modules in `lib/` are importable.
 
 ### 1. Generate Parameter Sweep Jobs
 ```bash
@@ -125,7 +131,7 @@ cd notebooks/
 papermill --log-output generate_jobs.ipynb clamp_base-generate_jobs.ipynb -p method_name clamp_base
 ```
 
-This will create ~3,600 jobs (360 param combinations × 10 datasets)
+This will create ~1,200 jobs (120 param combinations × 10 datasets)
 
 ### 2. Run Jobs in Parallel
 ```bash
@@ -145,7 +151,9 @@ papermill --log-output evaluate.ipynb clamp_base-evaluate.ipynb -p method_name c
 
 ### 4. Repeat for clamp_full
 ```bash
-# From root directory, ensure PYTHONPATH is set
+# From root directory, ensure environment is active and PYTHONPATH is set
+source ~/software/miniforge3/etc/profile.d/conda.sh
+conda activate clamp-module-eval
 export PYTHONPATH=`realpath lib`
 
 # Generate jobs
@@ -217,6 +225,22 @@ Expected performance: CLAMP should perform comparably or better than PCA, especi
 - `test_clamp.py` - Simple test script (works with real data only)
 - `CLAMP_INTEGRATION.md` - This documentation
 - `lib/clustering.py` - **DEPRECATED** - Previously used during development, now superseded by proper integration
+
+## Important: fdrtool Error Fix (Nov 2024)
+
+**If you see errors like:**
+```
+Error in optimize(nlogL, lower = lo, upper = up) : 'xmin' not less than 'xmax'
+```
+
+This has been **FIXED** as of November 2024. The fix handles CLAMP's sparse gene loadings robustly by:
+1. Only applying fdrtool to non-zero gene loadings
+2. Using percentile-based fallbacks when fdrtool fails
+3. Adapting to different levels of sparsity
+
+**See `CLAMP_FDRTOOL_FIX.md` for detailed explanation.**
+
+The error messages may still appear in R console output but are harmless - they're caught and handled gracefully with fallback thresholds. Jobs will complete successfully.
 
 ## Troubleshooting
 

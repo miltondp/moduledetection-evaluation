@@ -50,6 +50,14 @@ python -c "from clustermatch.coef import cm"
 3. **Evaluate** - Computes performance scores
 4. **Generate plots** - Visualizes results
 
+### CLAMP-Specific Notes
+
+CLAMP methods (clamp_base, clamp_full) will display R console warning messages during execution:
+- `Error in optimize(nlogL, lower = lo, upper = up): 'xmin' not less than 'xmax'`
+- `Censored sample for null model estimation has only size 1!`
+
+**These messages are expected and harmless.** They occur because CLAMP produces sparse gene loadings (80-90% zeros) that cannot be processed by fdrtool. The implementation automatically falls back to percentile-based thresholding. Jobs complete successfully and produce valid results. See CLAMP_FDRTOOL_FIX.md for technical details.
+
 ### Detailed Steps
 
 For a specific method (e.g., `agglom_pearson_abs`):
