@@ -24,18 +24,19 @@ parallel -j 3 -a tmp/paramexplo/clamp_base.txt
 
 # 4. Evaluate performance
 cd notebooks/
-export PYTHONPATH=`realpath ../lib`  # Re-export if in new shell
+# Re-export if in new shell
+# export PYTHONPATH=`realpath ../lib`
 papermill --log-output evaluate.ipynb clamp_base-evaluate.ipynb -p method_name clamp_base -p n_jobs 3
 
 # 5. (Optional) Repeat for clamp_full
 cd ..
-export PYTHONPATH=`realpath lib`
+#export PYTHONPATH=`realpath lib`
 cd notebooks/
 papermill --log-output generate_jobs.ipynb clamp_full-generate_jobs.ipynb -p method_name clamp_full
 cd ..
 parallel -j 1 -a tmp/paramexplo/clamp_full.txt
 cd notebooks/
-export PYTHONPATH=`realpath ../lib`
+#export PYTHONPATH=`realpath ../lib`
 papermill --log-output evaluate.ipynb clamp_full-evaluate.ipynb -p method_name clamp_full -p n_jobs 3
 
 # 6. Generate plots (open in Jupyter/browser)

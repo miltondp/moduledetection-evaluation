@@ -5,8 +5,8 @@ channels:
 dependencies:
   - cython=0.29.*
   - fisher=0.1.*
-  - jupytext=1.13.*
-  - jupyter=1.0.*
+  - jupytext=1.17.*
+  - jupyter=1.1.*
   - matplotlib=3.4.*
   - numba=0.54.*
   - numpy=1.20.*
